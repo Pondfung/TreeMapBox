@@ -78,6 +78,7 @@ disk_treemap_analyzer/
 ├── config/
 │   └── software_rules.json         # 软件缓存识别规则库
 ├── core/
+│   ├── file_node.py                # FileNode 数据结构（单一来源）
 │   ├── scanner.py                  # 基础扫描引擎
 │   ├── parallel_scanner.py         # 多线程并行扫描
 │   ├── mft_scanner.py              # MFT 扫描器 + 自动降级

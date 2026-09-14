@@ -35,4 +35,4 @@ docs/                # 用户文档
 - Git 仓库：github.com/Pondfung/TreeMapBox
 - `dist/TreeMapBox.exe` 已打包（约 39MB），根目录另放一份 TreeMapBox.exe（本地用，不入库）
 - 缓存位置：打包 exe → exe 同目录；源码运行 → `%LOCALAPPDATA%\TreeMapBox`
-- 已知技术债：`FileNode` 重复定义（scanner.py / parallel_scanner.py 两处）、`_safe_path` 在两个 tab 文件各抄一份
+- 已知技术债：`_safe_path` 在两个 tab 文件各抄一份（`FileNode` 重复定义已于 v0.9.6 合并到 `core/file_node.py`）
