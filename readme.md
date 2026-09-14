@@ -42,7 +42,7 @@
 - 🗑️ **安全删除**：安全项直接删除(快)，谨慎/危险项移至回收站(可恢复)
 - 🛡️ **系统目录保护**：Windows/Program Files 等自动跳过
 - ☁️ **云盘检测**：WPS云盘/OneDrive/Dropbox 等自动识别
-- 🛡️ **崩溃兜底**：全局 excepthook 写日志（`%TEMP%\disk_analyzer_crash.log`），windowed 模式不静默崩溃
+- 🛡️ **崩溃兜底**：全局 excepthook 写日志（`%TEMP%\treemapbox_crash.log`），windowed 模式不静默崩溃
 - ⚡ **取消响应**：扫描/哈希/路径扫描各阶段取消快速生效，不卡"正在停止"
 
 ## 安装
@@ -89,6 +89,7 @@ disk_treemap_analyzer/
 │   ├── duplicate_file_tab.py       # Tab2: 重复文件筛选
 │   ├── cache_cleaner_tab.py        # Tab3: 缓存清理
 │   ├── simple_treemap.py           # 矩形树图控件
+│   ├── treemap_widget.py           # 树图容器组件
 │   └── batch_operations.py         # 批量操作参考
 └── dist/
     └── TreeMapBox.exe                # 打包产物（v0.9.5）
@@ -102,7 +103,7 @@ python build_exe.py
 
 生成 `dist/TreeMapBox.exe`（单文件，约 37MB，windowed 模式）。
 
-> 提示：windowed 模式下崩溃无控制台输出，崩溃日志写入 `%TEMP%\disk_analyzer_crash.log`。
+> 提示：windowed 模式下崩溃无控制台输出，崩溃日志写入 `%TEMP%\treemapbox_crash.log`。
 
 ## 已知问题
 
