@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# 打包产物
+build/
+dist/
+*.spec
+*.egg-info/
+
+# 日志与测试输出
+*.log
+test_log.txt
+
+# 哈希缓存数据库
+*.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# 系统文件
+Thumbs.db
+desktop.ini
+.DS_Store

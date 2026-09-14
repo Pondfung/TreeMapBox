@@ -1,0 +1,109 @@
+[
+  {
+    "name": "Google Chrome",
+    "patterns": [
+      "AppData/Local/Google/Chrome",
+      "Program Files/Google/Chrome",
+      "Program Files (x86)/Google/Chrome"
+    ],
+    "cache_paths": [
+      "AppData/Local/Google/Chrome/User Data/Default/Cache",
+      "AppData/Local/Google/Chrome/User Data/Default/Code Cache",
+      "AppData/Local/Google/Chrome/User Data/Default/GPUCache"
+    ],
+    "cache_level": "safe"
+  },
+  {
+    "name": "Microsoft Edge",
+    "patterns": [
+      "AppData/Local/Microsoft/Edge",
+      "Program Files (x86)/Microsoft/Edge"
+    ],
+    "cache_paths": [
+      "AppData/Local/Microsoft/Edge/User Data/Default/Cache",
+      "AppData/Local/Microsoft/Edge/User Data/Default/Code Cache"
+    ],
+    "cache_level": "safe"
+  },
+  {
+    "name": "Visual Studio Code",
+    "patterns": [
+      "AppData/Roaming/Code",
+      ".vscode"
+    ],
+    "cache_paths": [
+      "AppData/Roaming/Code/Cache",
+      "AppData/Roaming/Code/CachedData",
+      "AppData/Roaming/Code/CachedExtensions"
+    ],
+    "cache_level": "cautious"
+  },
+  {
+    "name": "Node.js / npm",
+    "patterns": [
+      "AppData/Roaming/npm-cache",
+      "AppData/Local/npm-cache"
+    ],
+    "cache_paths": [
+      "AppData/Roaming/npm-cache",
+      "AppData/Local/npm-cache"
+    ],
+    "cache_level": "cautious"
+  },
+  {
+    "name": "Python pip",
+    "patterns": [
+      "AppData/Local/pip"
+    ],
+    "cache_paths": [
+      "AppData/Local/pip/cache"
+    ],
+    "cache_level": "cautious"
+  },
+  {
+    "name": "WeChat (微信)",
+    "patterns": [
+      "Documents/WeChat Files"
+    ],
+    "cache_paths": [
+      "Documents/WeChat Files/*/FileStorage/Cache",
+      "Documents/WeChat Files/*/FileStorage/Image",
+      "Documents/WeChat Files/*/FileStorage/Video"
+    ],
+    "cache_level": "cautious"
+  },
+  {
+    "name": "Tencent QQ",
+    "patterns": [
+      "Documents/Tencent Files"
+    ],
+    "cache_paths": [
+      "Documents/Tencent Files/*/FileRecv",
+      "Documents/Tencent Files/*/Image"
+    ],
+    "cache_level": "cautious"
+  },
+  {
+    "name": "Steam",
+    "patterns": [
+      "Program Files (x86)/Steam"
+    ],
+    "cache_paths": [
+      "Program Files (x86)/Steam/appcache",
+      "Program Files (x86)/Steam/depotcache"
+    ],
+    "cache_level": "cautious"
+  },
+  {
+    "name": "Windows 临时文件",
+    "patterns": [
+      "Windows/Temp",
+      "AppData/Local/Temp"
+    ],
+    "cache_paths": [
+      "Windows/Temp",
+      "AppData/Local/Temp"
+    ],
+    "cache_level": "safe"
+  }
+]
