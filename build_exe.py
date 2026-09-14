@@ -44,8 +44,8 @@ PyInstaller.__main__.run([
     '--exclude-module=matplotlib',
     '--exclude-module=numpy',
 
-    # 输出目录
-    f'--distpath={project_root / "dist"}',
+    # 输出目录（exe 直接输出到 exports/，与运行时缓存、导出 JSON 集中一处）
+    f'--distpath={project_root / "exports"}',
     f'--workpath={project_root / "build"}',
     f'--specpath={project_root}',
 
@@ -56,5 +56,5 @@ PyInstaller.__main__.run([
 print("\n" + "="*70)
 print("打包完成！")
 print("="*70)
-print(f"可执行文件位置: {project_root / 'dist' / 'TreeMapBox.exe'}")
+print(f"可执行文件位置: {project_root / 'exports' / 'TreeMapBox.exe'}")
 print("="*70)

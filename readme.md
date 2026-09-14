@@ -60,7 +60,7 @@ pip install -r requirements.txt
 python main.py
 ```
 
-或直接运行打包好的 `dist/TreeMapBox.exe`。
+或直接运行打包好的 `exports/TreeMapBox.exe`。
 
 ### 典型工作流
 1. **Tab1 磁盘分析**：扫描根目录（如 E:\），自动导出文件列表 JSON；再次扫描同盘可选复用近期结果（几秒加载）
@@ -97,8 +97,10 @@ disk_treemap_analyzer/
 ├── utils/
 │   ├── paths.py                    # 路径选择（缓存 + 导出目录）
 │   └── common.py                   # UI 共享工具（safe_path / is_cache_like 等，单一来源）
-└── dist/
-    └── TreeMapBox.exe                # 打包产物（v0.9.6）
+└── exports/
+    ├── TreeMapBox.exe                # 打包产物（v0.9.6）
+    ├── size_cache.db                 # exe 运行时缓存（frozen 时放 exe 同目录）
+    └── disk_scan_C.json              # 导出文件（frozen 时放 exe 同目录）
 ```
 
 ## 打包
@@ -107,7 +109,7 @@ disk_treemap_analyzer/
 python build_exe.py
 ```
 
-生成 `dist/TreeMapBox.exe`（单文件，约 39MB，windowed 模式）。
+生成 `exports/TreeMapBox.exe`（单文件，约 39MB，windowed 模式）。
 
 > 打包后缓存文件（`size_cache.db`、哈希缓存）放 exe 同目录（不占 C 盘）；源码运行（`python main.py`）时放 `%LOCALAPPDATA%\TreeMapBox`。exe 放在只读目录（如 Program Files）时自动回退 LOCALAPPDATA。
 

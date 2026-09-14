@@ -7,7 +7,7 @@ Windows 磁盘占用分析工具（PyQt6 桌面应用），集成磁盘分析、
 ```bash
 pip install -r requirements.txt   # PyQt6, send2trash, libfsntfs-python, pywin32
 python main.py                      # 需管理员权限才能用 MFT 扫描
-python build_exe.py                 # 打包成 dist/TreeMapBox.exe
+python build_exe.py                 # 打包成 exports/TreeMapBox.exe
 ```
 
 ## 技术栈
@@ -34,6 +34,6 @@ docs/                # 用户文档
 ## 当前状态
 - v0.9.6，USN 增量缓存已实现：首次全量 MFT 扫描（约 88s）写 size_cache.db，后续启动秒开 + 后台 USN 增量追平
 - Git 仓库：github.com/Pondfung/TreeMapBox
-- `dist/TreeMapBox.exe` 已打包（约 39MB），根目录另放一份 TreeMapBox.exe（本地用，不入库）
+- `exports/TreeMapBox.exe` 已打包（约 39MB，编译产物 + 运行时缓存/导出 JSON 都集中在此目录，`exports/` 已 gitignore 不入库）
 - 缓存位置：打包 exe → exe 同目录；源码运行 → `%LOCALAPPDATA%\TreeMapBox`；导出 JSON → `exports/`（源码）或 exe 同目录（打包，`exports/` 已 gitignore）
 - 技术债：v0.9.6 已清理 `FileNode`/`format_size`/`_safe_path`/`_get_export_path`/`_is_root_path`/`_is_cache_like`/`_path_in_cache_dir` 等重复定义（统一到 `core/file_node.py`、`core/scanner.py`、`utils/common.py`），并删除死文件 `ui/batch_operations.py`、死常量 `CACHE_NAME_KEYWORDS`、死函数 `_get_latest_export_path`。当前无已知技术债。
