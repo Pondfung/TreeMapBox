@@ -55,7 +55,7 @@ def main():
 
     # 设置应用信息
     app.setApplicationName("TreeMapBox")
-    app.setApplicationVersion("0.9.5")
+    app.setApplicationVersion("0.9.6")
     app.setOrganizationName("TreeMapBox")
 
     # 创建主窗口

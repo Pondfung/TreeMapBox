@@ -22,6 +22,8 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QRect, QSize
 from PyQt6.QtGui import QColor, QAction
 
+from utils.common import is_cache_like
+
 
 class CenteredCheckDelegate(QStyledItemDelegate):
     """在第 0 列居中绘制原生复选框（CheckStateRole）。
@@ -252,13 +254,9 @@ class CacheScanThread(QThread):
     def cancel(self):
         self._cancelled = True
 
-    # 匹配 cache/temp 相关的名字（不区分大小写）
-    CACHE_NAME_KEYWORDS = ('cache', 'temp', 'tmp', '.tmp', '缓存', '临时')
-
     def _is_cache_like(self, name):
         """名字是否与 cache/temp 相关"""
-        low = name.lower()
-        return any(kw in low for kw in ('cache', 'temp', 'tmp', '缓存', '临时'))
+        return is_cache_like(name)
 
     def _discover_cache_dirs(self, root):
         """自选模式：从根目录递归发现名字含 cache/temp 的目录。

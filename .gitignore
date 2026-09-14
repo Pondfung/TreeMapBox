@@ -10,6 +10,9 @@ dist/
 *.spec
 *.egg-info/
 
+# 导出文件（磁盘分析结果 JSON，运行时生成）
+exports/
+
 # 日志与测试输出
 *.log
 test_log.txt

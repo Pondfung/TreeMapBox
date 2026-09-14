@@ -30,50 +30,14 @@ from core.parallel_scanner import ParallelScanner
 from core.mft_scanner import MFTScanner, HybridScanner
 from core.size_cache import SizeCacheManager, UsnUpdater
 from ui.simple_treemap import SimpleTreemapWidget
+from utils.common import (
+    safe_path as _safe_path,
+    is_root_path as _is_root_path,
+    get_export_path as _get_export_path,
+)
 
 NODE_ROLE = Qt.ItemDataRole.UserRole + 2
 LOADED_ROLE = Qt.ItemDataRole.UserRole + 3
-
-# 导出文件列表的固定目录（按盘符区分，如 disk_scan_C.json、disk_scan_E.json）
-EXPORT_DIR = os.environ.get('TEMP', '.')
-
-
-def _safe_path(p):
-    """对路径做代理字符安全化。
-
-    Windows 文件名是 UTF-16，某些损坏/特殊文件名含孤立代理字符（surrogate），
-    Python str 里有这些代理时，json.dump(ensure_ascii=False) 写 UTF-8 文件会抛
-    UnicodeEncodeError('surrogates not allowed')，导致导出中断、JSON 不生成。
-    这里用 surrogatepass 编码再 replace 解码，把孤立代理替换为 U+FFFD（�），
-    保证能正常写入 UTF-8 文件。路径仅用于显示/比对，轻微变形不影响功能。
-    """
-    try:
-        return p.encode('utf-8', 'surrogatepass').decode('utf-8', 'replace')
-    except Exception:
-        return p.encode('utf-8', 'replace').decode('utf-8', 'replace')
-
-
-def _get_export_path(scan_path):
-    """根据扫描路径生成导出文件路径（按盘符区分）"""
-    drive = os.path.splitdrive(scan_path)[0].replace(':', '') or 'unknown'
-    return os.path.join(EXPORT_DIR, f'disk_scan_{drive}.json')
-
-
-def _get_latest_export_path():
-    """获取最新修改的导出文件（供重复文件Tab导入用）"""
-    import glob
-    files = glob.glob(os.path.join(EXPORT_DIR, 'disk_scan_*.json'))
-    if not files:
-        return None
-    return max(files, key=os.path.getmtime)
-
-
-def _is_root_path(path_str):
-    """判断是否为磁盘根目录（如 C:\、D:\、E:/）"""
-    p = path_str.strip().rstrip('/\\')
-    # 匹配 X: 或 X:\ 形式
-    return len(p) == 2 and p[1] == ':' or (len(p) == 3 and p[1] == ':' and p[2] in '/\\')
-
 
 class ScanThread(QThread):
     """扫描线程"""
@@ -1547,14 +1511,7 @@ class DiskAnalysisTab(QWidget):
             if is_cache:
                 cache_count += 1
 
-        def format_size_simple(size_bytes):
-            for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-                if size_bytes < 1024.0:
-                    return f"{size_bytes:.1f} {unit}"
-                size_bytes /= 1024.0
-            return f"{size_bytes:.1f} PB"
-
-        total_size_str = format_size_simple(total_size)
+        total_size_str = format_size(total_size)
         message = f"确定要删除以下内容吗？\n\n选中项数: {len(paths)}\n总大小: {total_size_str}"
         if cache_count > 0:
             message += f"\n缓存文件夹: {cache_count} 个"

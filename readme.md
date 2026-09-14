@@ -93,10 +93,10 @@ disk_treemap_analyzer/
 │   ├── duplicate_file_tab.py       # Tab2: 重复文件筛选
 │   ├── cache_cleaner_tab.py        # Tab3: 缓存清理
 │   ├── simple_treemap.py           # 矩形树图控件
-│   ├── treemap_widget.py           # 树图容器组件
-│   └── batch_operations.py         # 批量操作参考
+│   └── treemap_widget.py           # 树图容器组件
 ├── utils/
-│   └── paths.py                    # 缓存目录选择（exe 同目录 / LOCALAPPDATA）
+│   ├── paths.py                    # 路径选择（缓存 + 导出目录）
+│   └── common.py                   # UI 共享工具（safe_path / is_cache_like 等，单一来源）
 └── dist/
     └── TreeMapBox.exe                # 打包产物（v0.9.6）
 ```

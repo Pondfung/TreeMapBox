@@ -23,3 +23,21 @@ def default_cache_dir():
     if getattr(sys, 'frozen', False):
         return os.path.dirname(sys.executable)
     return localappdata_cache_dir()
+
+
+def export_dir():
+    """导出文件目录（磁盘分析结果 JSON，供重复文件 Tab 复用）。
+
+    源码运行 → 项目根目录 exports/ 子目录（集中放置，不与根目录工程文件混杂，
+    且独立于 build/，避免打包 --clean 清空导出结果）；
+    打包 exe → exe 同目录。均自动建目录，失败回退 TEMP。
+    """
+    if getattr(sys, 'frozen', False):
+        d = os.path.dirname(sys.executable)
+    else:
+        d = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'exports')
+    try:
+        os.makedirs(d, exist_ok=True)
+    except OSError:
+        d = os.environ.get('TEMP', '.')
+    return d

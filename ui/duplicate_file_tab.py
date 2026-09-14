@@ -34,62 +34,14 @@ from concurrent.futures import ThreadPoolExecutor
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from core.hash_cache import HashCacheManager
 from core.mft_scanner import MFTScanner, HybridScanner
-
-# 导出文件目录
-EXPORT_DIR = os.environ.get('TEMP', '.')
-
-
-def _safe_path(p):
-    """对路径做代理字符安全化（与磁盘分析Tab一致）。
-
-    Windows 文件名是 UTF-16，某些损坏/特殊文件名含孤立代理字符（surrogate），
-    json.dump(ensure_ascii=False) 写 UTF-8 文件会抛 UnicodeEncodeError 导致导出
-    中断。用 surrogatepass 编码再 replace 解码，把孤立代理替换为 U+FFFD。
-    """
-    try:
-        return p.encode('utf-8', 'surrogatepass').decode('utf-8', 'replace')
-    except Exception:
-        return p.encode('utf-8', 'replace').decode('utf-8', 'replace')
-
-
-# cache/temp 相关关键字（与缓存清理Tab _is_cache_like 一致）
-_CACHE_KEYWORDS = ('cache', 'temp', 'tmp', '缓存', '临时')
-
-
-def _is_cache_like(name):
-    """名字是否与 cache/temp 相关（不区分大小写，与缓存清理Tab同规则）"""
-    low = name.lower()
-    return any(kw in low for kw in _CACHE_KEYWORDS)
-
-
-def _path_in_cache_dir(path):
-    """路径是否位于 cache/temp 相关目录下（检查各级目录名）。
-
-    例如 C:\\Users\\x\\.cache\\a.bin 中 .cache 匹配 → 跳过该文件。
-    盘根、文件名本身不检查（只查中间各级目录名）。
-    """
-    # 拆分路径各级，跳过盘符根，检查每个目录名
-    parts = path.replace('/', '\\').split('\\')
-    # 去掉空段和盘符段（如 'C:'）
-    for part in parts:
-        if not part or len(part) == 2 and part[1] == ':':
-            continue
-        if _is_cache_like(part):
-            return True
-    return False
-
-
-def _get_export_path(scan_path):
-    """根据扫描路径生成导出文件路径（按盘符区分，如 disk_scan_C.json）"""
-    drive = os.path.splitdrive(scan_path)[0].replace(':', '') or 'unknown'
-    return os.path.join(EXPORT_DIR, f'disk_scan_{drive}.json')
-
-
-def _is_root_path(path_str):
-    """判断是否为磁盘根目录（如 C:\、D:\、E:/）"""
-    p = path_str.strip().rstrip('/\\')
-    return len(p) == 2 and p[1] == ':' or (len(p) == 3 and p[1] == ':' and p[2] in '/\\')
-
+from utils.common import (
+    safe_path as _safe_path,
+    is_root_path as _is_root_path,
+    get_export_path as _get_export_path,
+    is_cache_like as _is_cache_like,
+    path_in_cache_dir as _path_in_cache_dir,
+)
+from utils.paths import export_dir
 
 class CenteredCheckDelegate(QStyledItemDelegate):
     """在第 0 列居中绘制原生复选框。
@@ -145,15 +97,6 @@ class CenteredCheckDelegate(QStyledItemDelegate):
         iw = style.pixelMetric(QStyle.PixelMetric.PM_IndicatorWidth, None, option.widget)
         ih = style.pixelMetric(QStyle.PixelMetric.PM_IndicatorHeight, None, option.widget)
         return QSize(iw + 8, ih + 8)
-
-
-def _get_latest_export_path():
-    """获取最新修改的导出文件"""
-    import glob
-    files = glob.glob(os.path.join(EXPORT_DIR, 'disk_scan_*.json'))
-    if not files:
-        return None
-    return max(files, key=os.path.getmtime)
 
 
 def _format_size(b):
@@ -1012,18 +955,18 @@ class DuplicateFileTab(QWidget):
         """导入磁盘分析结果 - 直接打开文件对话框"""
         # 列出所有可用的 JSON 文件
         import glob
-        available = glob.glob(os.path.join(EXPORT_DIR, 'disk_scan_*.json'))
+        available = glob.glob(os.path.join(export_dir(), 'disk_scan_*.json'))
 
         if available:
             # 显示可用文件列表
             names = [os.path.basename(f) for f in sorted(available, key=os.path.getmtime, reverse=True)]
             QMessageBox.information(self, "可用的文件列表",
-                f"在 {EXPORT_DIR} 中找到以下文件：\n\n" + "\n".join(names) +
+                f"在 {export_dir()} 中找到以下文件：\n\n" + "\n".join(names) +
                 "\n\n接下来请选择要导入的文件")
 
         file_path = QFileDialog.getOpenFileName(
             self, "选择磁盘分析导出的文件列表",
-            EXPORT_DIR, "JSON文件 (disk_scan_*.json)")[0]
+            export_dir(), "JSON文件 (disk_scan_*.json)")[0]
 
         if not file_path:
             return
