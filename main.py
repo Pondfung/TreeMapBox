@@ -16,6 +16,13 @@ from pathlib import Path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
+# C++ 层崩溃（段错误/访问冲突）不会走 Python excepthook，用 faulthandler 兜底，
+# 把崩溃瞬间的 Python 栈 + C 栈写入文件，否则闪退无任何痕迹可查。
+import faulthandler
+_fault_log = os.path.join(os.environ.get('TEMP', '.'), 'treemapbox_fault.log')
+_fault_file = open(_fault_log, 'a', encoding='utf-8', buffering=1)
+faulthandler.enable(file=_fault_file)
+
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt
 from ui.main_window import MainWindow

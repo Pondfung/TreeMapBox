@@ -26,3 +26,9 @@ test_log.txt
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# 工作区记忆（本地私有，不入库）
+.workbuddy/
+
+# 打包后放在项目根目录的 exe
+TreeMapBox.exe

@@ -12,13 +12,24 @@ import sqlite3
 import threading
 from datetime import datetime
 
+from utils.paths import default_cache_dir, localappdata_cache_dir
+
 
 class HashCacheManager:
     """哈希缓存管理器 - 使用SQLite存储已计算的哈希"""
 
     def __init__(self, cache_dir=None):
         if cache_dir is None:
-            cache_dir = os.environ.get('TEMP', '.')
+            cache_dir = default_cache_dir()
+        try:
+            os.makedirs(cache_dir, exist_ok=True)
+        except OSError:
+            # 目标目录不可写（如 exe 放在 Program Files）→ 回退 LOCALAPPDATA
+            cache_dir = localappdata_cache_dir()
+            try:
+                os.makedirs(cache_dir, exist_ok=True)
+            except OSError:
+                cache_dir = os.environ.get('TEMP', '.')
         self.cache_file = os.path.join(cache_dir, 'duplicate_scanner_cache.db')
         # 每线程复用一个连接：避免 16 线程并发时每次操作都新建/销毁连接，
         # 也避免 sqlite3 默认 5 秒 busy 等待 × 大量写锁冲突导致扫描卡死。

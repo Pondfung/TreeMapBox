@@ -29,6 +29,7 @@ class MFTScanner:
         self._cancelled = False
         self.last_error = None  # 失败原因（字符串），成功时为 None
         self.last_errors_info = []  # 损坏条目信息列表 [(位置, 错误类型), ...]
+        self.last_root_frn = 0  # 卷根目录完整 64 位 file_reference（增量缓存写根目录行用）
 
     def cancel(self):
         """取消扫描"""
@@ -185,21 +186,33 @@ class MFTScanner:
         # ===== 迭代式栈遍历 =====
         t1 = time.time()
         files = []
-        # 栈元素: (directory_entry, current_path)
-        stack = [(root, "")]
+        # 根目录 FRN（作为顶层条目的 parent_frn）
+        try:
+            root_frn = root.file_reference
+        except Exception:
+            root_frn = 0
+        self.last_root_frn = root_frn
+        # 栈元素: (directory_entry, current_path, parent_frn)
+        stack = [(root, "", root_frn)]
         count = 0
         errors = 0
 
         while stack:
             if self._cancelled:
                 break
-            directory, current_path = stack.pop()
+            directory, current_path, parent_frn = stack.pop()
             try:
                 for entry in directory.sub_file_entries:
                     try:
                         name = entry.name
                         if not name or name.startswith('$'):
                             continue
+
+                        # 完整 64 位 file_reference（含 sequence），供 USN 增量映射
+                        try:
+                            frn = entry.file_reference
+                        except Exception:
+                            frn = 0
 
                         # 判断目录
                         try:
@@ -226,6 +239,8 @@ class MFTScanner:
                             'path': full_path,
                             'size': size,
                             'is_dir': is_dir,
+                            'frn': frn,
+                            'parent_frn': parent_frn,
                         })
 
                         count += 1
@@ -233,7 +248,7 @@ class MFTScanner:
                         # 目录压栈
                         if is_dir:
                             new_path = f"{current_path}\\{name}" if current_path else name
-                            stack.append((entry, new_path))
+                            stack.append((entry, new_path, frn))
 
                     except Exception as e:
                         errors += 1

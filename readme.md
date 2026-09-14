@@ -1,4 +1,4 @@
-# TreeMapBox v0.9.5
+# TreeMapBox v0.9.6
 
 基于 PyQt6 的 Windows 磁盘占用分析工具（TreeMapBox），集成磁盘分析、重复文件筛选、缓存清理三大功能模块。
 
@@ -14,6 +14,7 @@
 - 🔗 **双向联动**：树形列表与矩形树图互相高亮
 - 📄 **自动导出文件列表**：扫描根目录时自动导出 JSON（按盘符区分，原子写），供重复文件 Tab 复用
 - ♻️ **JSON 复用**：扫根目录时若存在 1 天内的盘符 JSON，弹窗询问"复用近期结果（几秒加载）"或"重新扫描（MFT 实时）"
+- ⚡ **启动秒开（USN 增量缓存）**：首次 MFT 扫描后把目录大小写入 SQLite 缓存，后续启动从缓存秒级加载，后台读 USN Journal 增量追平（新建/删除/改名/改大小），无需每次全盘扫
 
 ### Tab 2: 🔍 重复文件筛选
 - 🔍 **沿用磁盘分析扫描**：MFT 优先 + 失败降级普通扫描，根目录自动复用/生成盘符 JSON
@@ -51,7 +52,7 @@
 pip install -r requirements.txt
 ```
 
-依赖：PyQt6、send2trash、pyfsntfs（MFT 扫描）、pywin32（Windows API）。
+依赖：PyQt6、send2trash、libfsntfs-python（import 名 pyfsntfs，MFT 扫描）、pywin32（Windows API）。
 
 ## 使用
 
@@ -82,7 +83,9 @@ disk_treemap_analyzer/
 │   ├── mft_scanner.py              # MFT 扫描器 + 自动降级
 │   ├── parallel_mft_scanner.py     # 多进程 MFT 扫描
 │   ├── cache_detector.py           # 缓存识别与安全评级
-│   └── hash_cache.py               # 重复文件哈希缓存 (SQLite)
+│   ├── hash_cache.py               # 重复文件哈希缓存 (SQLite)
+│   ├── usn_journal.py              # USN Journal 读取引擎
+│   └── size_cache.py               # 目录大小缓存 + 增量更新
 ├── ui/
 │   ├── main_window.py              # 主窗口 (QTabWidget)
 │   ├── disk_analysis_tab.py        # Tab1: 磁盘分析
@@ -91,8 +94,10 @@ disk_treemap_analyzer/
 │   ├── simple_treemap.py           # 矩形树图控件
 │   ├── treemap_widget.py           # 树图容器组件
 │   └── batch_operations.py         # 批量操作参考
+├── utils/
+│   └── paths.py                    # 缓存目录选择（exe 同目录 / LOCALAPPDATA）
 └── dist/
-    └── TreeMapBox.exe                # 打包产物（v0.9.5）
+    └── TreeMapBox.exe                # 打包产物（v0.9.6）
 ```
 
 ## 打包
@@ -101,7 +106,9 @@ disk_treemap_analyzer/
 python build_exe.py
 ```
 
-生成 `dist/TreeMapBox.exe`（单文件，约 37MB，windowed 模式）。
+生成 `dist/TreeMapBox.exe`（单文件，约 39MB，windowed 模式）。
+
+> 打包后缓存文件（`size_cache.db`、哈希缓存）放 exe 同目录（不占 C 盘）；源码运行（`python main.py`）时放 `%LOCALAPPDATA%\TreeMapBox`。exe 放在只读目录（如 Program Files）时自动回退 LOCALAPPDATA。
 
 > 提示：windowed 模式下崩溃无控制台输出，崩溃日志写入 `%TEMP%\treemapbox_crash.log`。
 
@@ -125,6 +132,15 @@ python build_exe.py
 
 ## 版本历史
 
+- **v0.9.6**（2026-09-15）：
+  - ✅ 新增 USN 增量缓存：首次 MFT 扫描后把目录大小写入 SQLite（size_cache.db），后续启动秒级加载 + 后台读 USN Journal 增量追平，消除每次启动 88 秒全盘扫描
+  - ✅ 新增 `core/usn_journal.py`（FSCTL_QUERY/READ_USN_JOURNAL 封装 + USN_RECORD_V2 解析）与 `core/size_cache.py`（缓存管理 + UsnUpdater 增量）
+  - ✅ 扫描器 `FileNode` 加 `frn`/`parent_frn`（完整 64 位 file_reference），MFT 扫描器暴露 `root_frn`
+  - ✅ 缓存加载走后台线程（CacheLoadThread），消除百万条目加载时的 UI 假死
+  - ✅ 缓存目录选择：打包 exe → exe 同目录（不占 C 盘）；源码运行 → LOCALAPPDATA；统一到 `utils/paths.py`
+  - ✅ 修复 frn 溢出（64 位无符号 vs SQLite 有符号，`_to_signed`/`_to_unsigned` 转换）
+  - ✅ 修复缓存加载闪退（0xc0000409：QThread destroyed while running，改用 `_live_scan_threads` 容器持有引用）
+  - ✅ 修复 requirements.txt 包名（`pyfsntfs` → `libfsntfs-python`）
 - **v0.9.5**（2026-08-25）：
   - ✅ 新增 Tab 框架（QTabWidget）
   - ✅ 新增缓存清理Tab（9大类54个缓存路径扫描、安全评级、分类过滤）
@@ -165,4 +181,4 @@ MIT License
 
 ---
 
-**最后更新**: 2026-08-25
+**最后更新**: 2026-09-15

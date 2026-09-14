@@ -27,6 +27,8 @@ class FileNode:
     dir_count: int = 0
     is_cache: bool = False
     cache_level: str = ''
+    frn: int = 0          # NTFS 完整 64 位 file_reference（MFT 扫描填充，普通扫描为 0）
+    parent_frn: int = 0   # 父目录完整 64 位 file_reference
 
     def add_child(self, node: 'FileNode'):
         """添加子节点"""

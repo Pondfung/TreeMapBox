@@ -28,6 +28,7 @@ from core.scanner import DiskScanner, FileNode, format_size
 from core.cache_detector import CacheDetector
 from core.parallel_scanner import ParallelScanner
 from core.mft_scanner import MFTScanner, HybridScanner
+from core.size_cache import SizeCacheManager, UsnUpdater
 from ui.simple_treemap import SimpleTreemapWidget
 
 NODE_ROLE = Qt.ItemDataRole.UserRole + 2
@@ -122,6 +123,7 @@ class MFTScanThread(QThread):
         self.files = None
         self.method = None
         self.error = None
+        self.root_frn = 0  # 卷根目录完整 64 位 file_reference（增量缓存写根目录行用）
 
     def run(self):
         def progress_callback(message, count):
@@ -129,11 +131,69 @@ class MFTScanThread(QThread):
 
         try:
             self.files, self.method = self.mft_scanner.scan(self.path, self.mode, progress_callback)
+            self.root_frn = self._extract_root_frn()
         except Exception as e:
             import traceback
             traceback.print_exc()
             self.error = f"{type(e).__name__}: {e}"
             self.error_signal.emit(self.error)
+
+    def _extract_root_frn(self):
+        """从实际使用的子扫描器读取根目录 FRN。"""
+        if self.method == 'mft_single':
+            return getattr(self.mft_scanner.mft_single, 'last_root_frn', 0)
+        return getattr(self.mft_scanner.mft_scanner, 'last_root_frn', 0)
+
+
+class UsnUpdaterThread(QThread):
+    """后台 USN 增量追平线程（缓存秒开后异步补齐扫描期间的变更）"""
+    update_finished = pyqtSignal(int, bool)  # (applied, ok)
+
+    def __init__(self, updater, drive):
+        super().__init__()
+        self.updater = updater
+        self.drive = drive
+        self.applied = 0
+        self.ok = False
+
+    def run(self):
+        try:
+            self.applied, self.ok = self.updater.run(self.drive)
+        except Exception:
+            import traceback
+            traceback.print_exc()
+            self.applied = 0
+            self.ok = False
+        self.update_finished.emit(self.applied, self.ok)
+
+
+class CacheLoadThread(QThread):
+    """后台缓存加载线程：读 SQLite + 重建目录树（纯 CPU/IO，放后台避免阻塞 UI）。
+
+    converter 传入 _convert_mft_results_to_tree（纯 Python，不碰任何 Qt 对象），
+    因此可安全地在工作线程里构建 FileNode 树，再经 loaded 信号回传主线程渲染。
+    """
+    loaded = pyqtSignal(object)   # FileNode 根节点（成功）；None 表示缓存为空
+    failed = pyqtSignal(str)      # 错误信息
+
+    def __init__(self, cache, path, converter):
+        super().__init__()
+        self.cache = cache
+        self.path = path
+        self.converter = converter
+
+    def run(self):
+        try:
+            files = self.cache.load(self.path)
+            if not files:
+                self.loaded.emit(None)
+                return
+            root = self.converter(files, self.path)
+            self.loaded.emit(root)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self.failed.emit(str(e))
 
 
 class DiskAnalysisTab(QWidget):
@@ -161,6 +221,13 @@ class DiskAnalysisTab(QWidget):
         self._flash_timer = None
         self._flash_count = 0
         self._flash_state = False
+
+        # USN 增量缓存：首次 MFT 全量扫描后持久化目录大小，二次启动秒开
+        self.size_cache = SizeCacheManager()
+        self.usn_updater = UsnUpdater(self.size_cache)
+        self.usn_thread = None
+        self.cache_load_thread = None  # 后台缓存加载线程
+        self._pending_journal_snapshot = None  # 扫描开始前的 journal 游标
 
         self._setup_ui()
         self._setup_shortcuts()
@@ -337,6 +404,11 @@ class DiskAnalysisTab(QWidget):
             QMessageBox.warning(self, "警告", f"路径不存在: {path}")
             return
 
+        # 缓存秒开：缓存有效直接加载，随后后台 USN 增量追平（跳过 JSON 复用询问与全量扫描）
+        if self.size_cache.is_valid(path):
+            self._load_from_size_cache(path)
+            return
+
         # 根目录：若存在1天内生成的JSON，询问用户复用还是重新扫描
         if _is_root_path(path):
             json_path = _get_export_path(path)
@@ -348,6 +420,13 @@ class DiskAnalysisTab(QWidget):
                             return  # 已走复用流程
                 except Exception:
                     pass
+
+        self._start_full_scan(path)
+
+    def _start_full_scan(self, path):
+        """启动全量扫描（MFT 或普通），MFT 前记录 journal 游标供缓存写入。"""
+        # 全量重扫会重写缓存，先停掉可能还在跑的后台增量（并发互斥）
+        self._stop_usn_update()
 
         self._scan_start = time.perf_counter()
         self.result_tree.clear()
@@ -378,6 +457,7 @@ class DiskAnalysisTab(QWidget):
                 QMessageBox.warning(self, "MFT库不可用", "MFT极速扫描不可用。")
                 self._reset_scan_ui()
                 return
+            self._capture_journal_snapshot(path)
             self._launch_scan_thread(
                 MFTScanThread(self.hybrid_scanner, path, mode='mft'),
                 self._on_mft_scan_finished)
@@ -388,6 +468,7 @@ class DiskAnalysisTab(QWidget):
                 self.mft_scanner.is_mft_library_available()
             )
             if can_use_mft:
+                self._capture_journal_snapshot(path)
                 self._launch_scan_thread(
                     MFTScanThread(self.hybrid_scanner, path, mode='auto'),
                     self._on_mft_scan_finished)
@@ -395,6 +476,119 @@ class DiskAnalysisTab(QWidget):
                 self._launch_scan_thread(
                     ScanThread(self.parallel_scanner, path, depth=scan_depth),
                     self._on_scan_finished)
+
+    def _capture_journal_snapshot(self, path):
+        """记录扫描开始前的 USN journal 游标。
+
+        缓存写入时用「扫描开始前」的位置作为增量起点：扫描期间发生的变更会由
+        后续后台增量重放（stat 幂等），从而不漏掉扫描期间的增删改。失败返回 None
+        （届时缓存不记录 journal 状态，下次启动走全量，安全降级）。
+        """
+        self._pending_journal_snapshot = self.size_cache.query_journal_snapshot(
+            self.size_cache._drive(path))
+
+    def _load_from_size_cache(self, path):
+        """从 SQLite 缓存加载目录大小，随后后台 USN 增量追平。
+
+        读库 + 重建目录树（122 万条目的纯 CPU/IO）放到 CacheLoadThread 后台执行，
+        主线程只做轻量的列表填充与树图渲染，避免加载过程 UI 假死。
+        """
+        self._scan_start = time.perf_counter()
+        self.scan_btn.setEnabled(False)
+        self.stop_btn.setEnabled(False)
+        self.progress_bar.setVisible(True)
+        self.progress_bar.setRange(0, 0)
+        self._start_elapsed_timer()
+        self.result_tree.clear()
+        self.treemap_widget.clear_display()
+        self.current_node = None
+        self._pending_cache_path = path
+        self._update_status("正在从缓存加载...")
+
+        thread = CacheLoadThread(self.size_cache, path, self._convert_mft_results_to_tree)
+        thread.loaded.connect(self._on_cache_loaded)
+        thread.failed.connect(self._on_cache_load_failed)
+        thread.finished.connect(thread.deleteLater)
+        # 容器持有引用：防止 run() 尚未返回时 Python GC 提前析构仍在运行的 QThread，
+        # 触发 "QThread: Destroyed while thread is still running" 崩溃（异常码 0xc0000409）。
+        # 引用由 destroyed 信号统一释放，与 scan_thread 的既有模式保持一致。
+        self._live_scan_threads.append(thread)
+        thread.destroyed.connect(lambda _=None, t=thread: self._discard_scan_thread(t))
+        self.cache_load_thread = thread
+        thread.start()
+
+    def _on_cache_loaded(self, root_node):
+        """后台缓存加载完成：主线程填充列表 + 渲染树图，然后启动 USN 增量。"""
+        # 不能在此处置 None：run() 可能尚未返回，过早解除引用会让 GC 析构仍在
+        # 运行的 QThread（0xc0000409）。引用由 _live_scan_threads + destroyed 管理。
+        path = getattr(self, '_pending_cache_path', None) or self.path_input.text().strip()
+
+        if root_node is None:
+            # is_valid 已挡掉空缓存，此处仅防御：回退全量扫描
+            self._update_status("缓存为空，回退全量扫描")
+            self._reset_scan_ui()
+            self._start_full_scan(path)
+            return
+
+        try:
+            self.current_node = root_node
+            self._update_status("目录树重建完成，正在填充列表...")
+            self._populate_tree(root_node)
+            self._update_status("列表填充完成，正在渲染矩形树图...")
+            self.treemap_widget.set_data(root_node)
+            load_secs = time.perf_counter() - self._scan_start
+
+            self._update_time(f"上次: 缓存加载{load_secs:.1f}s")
+            self._update_status(
+                f"[缓存] 加载完成 - 总大小: {format_size(root_node.size)}, "
+                f"文件数: {root_node.file_count}, 目录数: {root_node.dir_count}"
+            )
+
+            # 后台 USN 增量追平（启动失败不影响已加载的缓存快照，静默降级）
+            try:
+                self._start_usn_update(path)
+            except Exception as e:
+                print(f"[增量] 启动失败: {e}", flush=True)
+        except Exception as e:
+            QMessageBox.critical(self, "加载失败", f"处理缓存数据失败: {e}")
+            self._update_status("缓存加载失败，请重新扫描")
+        finally:
+            self._reset_scan_ui()
+
+    def _on_cache_load_failed(self, msg):
+        """后台缓存加载失败：弹错并复位 UI（不回退全量，由用户决定是否重扫）。"""
+        QMessageBox.critical(self, "加载失败", f"读取缓存失败: {msg}")
+        self._update_status("缓存加载失败，请重新扫描")
+        self._reset_scan_ui()
+
+    def _start_usn_update(self, scan_path):
+        """启动后台 USN 增量追平线程。"""
+        drive = self.size_cache._drive(scan_path)
+        self.usn_thread = UsnUpdaterThread(self.usn_updater, drive)
+        self.usn_thread.update_finished.connect(self._on_usn_update_finished)
+        self.usn_thread.finished.connect(self.usn_thread.deleteLater)
+        # 容器持有引用，防止 GC 提前析构仍在运行的 QThread（同 CacheLoadThread）
+        self._live_scan_threads.append(self.usn_thread)
+        self.usn_thread.destroyed.connect(
+            lambda _=None, t=self.usn_thread: self._discard_scan_thread(t))
+        self.usn_thread.start()
+
+    def _stop_usn_update(self):
+        """停止后台增量线程（全量重扫前调用，避免与 save_scan 并发写库）。"""
+        if self.usn_thread is not None:
+            try:
+                if self.usn_thread.isRunning():
+                    self.usn_updater.cancel()
+                    self.usn_thread.wait(3000)
+            except RuntimeError:
+                pass  # 线程对象已 deleteLater
+
+    def _on_usn_update_finished(self, applied, ok):
+        # 同 CacheLoadThread：不在此处置 None，引用由容器 + destroyed 管理。
+        if ok:
+            self._update_status(f"后台增量更新完成（{applied} 条变更）")
+        else:
+            self._update_status("后台增量更新未完成，下次扫描将全量刷新")
 
     def _ask_reuse_json(self, path, json_path, age_hours):
         """根目录扫描时询问用户是否复用1天内JSON。返回True表示已处理（复用），False表示重新扫描。"""
@@ -494,6 +688,10 @@ class DiskAnalysisTab(QWidget):
             pass
         if self.scan_thread is t:
             self.scan_thread = None
+        if self.cache_load_thread is t:
+            self.cache_load_thread = None
+        if self.usn_thread is t:
+            self.usn_thread = None
 
     def _stop_scan(self):
         if not (self.scan_thread and self.scan_thread.isRunning()):
@@ -609,6 +807,13 @@ class DiskAnalysisTab(QWidget):
             else:
                 self.parallel_scanner.stop()
             self.scan_thread.wait(3000)
+        # 停止后台增量线程：否则窗口销毁后 QThread 仍在跑，finished 信号回调
+        # 访问已析构的 status_label 等 Qt 对象会段错误闪退。
+        self._stop_usn_update()
+        # 缓存加载线程是纯 CPU 任务无法中断，等它跑完（converter 持有 self 强引用，
+        # 纯 Python 不碰 Qt，不会悬空；只影响加载耗时，不阻塞关闭正确性）。
+        if self.cache_load_thread and self.cache_load_thread.isRunning():
+            self.cache_load_thread.wait(10000)
 
     def _on_scan_finished(self):
         thread = self.scan_thread
@@ -720,6 +925,12 @@ class DiskAnalysisTab(QWidget):
             if _is_root_path(scan_path):
                 self._export_file_list(auto=True)
 
+            # 写目录大小缓存 + journal 状态（供下次启动秒开；仅 MFT 扫描有 frn）
+            try:
+                self._save_size_cache(files, scan_path, thread.root_frn)
+            except Exception as e:
+                print(f"[缓存] 写入失败: {e}", flush=True)
+
             err_infos = getattr(self.hybrid_scanner, 'last_errors_info', [])
             if err_infos:
                 lines = [f"• {loc}（{err}）" for loc, err in err_infos]
@@ -730,6 +941,20 @@ class DiskAnalysisTab(QWidget):
         except Exception as e:
             QMessageBox.critical(self, "错误", f"处理MFT扫描结果时出错：\n{str(e)}")
             self._update_status("扫描失败")
+
+    def _save_size_cache(self, files, scan_path, root_frn=0):
+        """全量 MFT 扫描完成后写缓存，并记录「扫描开始前」的 journal 游标。
+
+        root_frn 为卷根目录的 64 位 file_reference，写入缓存根目录行后，USN 增量
+        才能解析 C:\\ 根目录下顶层文件/目录的父路径（parent_frn 指向根目录）。
+        """
+        self.size_cache.save_scan(files, scan_path, root_frn=root_frn)
+        snap = self._pending_journal_snapshot
+        if snap:
+            drive = self.size_cache._drive(scan_path)
+            self.size_cache.set_journal_state(
+                drive, snap['journal_id'], snap['next_usn'], scan_path)
+        self._pending_journal_snapshot = None
 
     def _convert_mft_results_to_tree(self, files, scan_path):
         """将MFT扫描结果转换为FileNode树形结构"""

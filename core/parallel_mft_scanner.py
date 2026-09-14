@@ -27,6 +27,10 @@ def _scan_subtree_worker(args):
         vol = pyfsntfs.volume()
         vol.open(f"\\\\.\\{drive_letter}:")
         root = vol.get_root_directory()
+        try:
+            root_frn = root.file_reference
+        except Exception:
+            root_frn = 0
 
         target = None
         try:
@@ -45,9 +49,9 @@ def _scan_subtree_worker(args):
             vol.close()
             return files, errors
 
-        stack = [(target, "")]
+        stack = [(target, "", root_frn)]
         while stack:
-            entry, cur_path = stack.pop()
+            entry, cur_path, parent_frn = stack.pop()
 
             # 处理条目自身（与单进程扫描逐条目处理一致）
             try:
@@ -58,6 +62,11 @@ def _scan_subtree_worker(args):
             if not name or name.startswith('$'):
                 # 跳过系统/无效条目，但不再继续其子项
                 continue
+
+            try:
+                frn = entry.file_reference
+            except Exception:
+                frn = 0
 
             is_dir = False
             try:
@@ -84,13 +93,15 @@ def _scan_subtree_worker(args):
                 'path': full_path,
                 'size': size,
                 'is_dir': is_dir,
+                'frn': frn,
+                'parent_frn': parent_frn,
             })
 
             if is_dir:
                 new_path = f"{cur_path}\\{name}" if cur_path else name
                 try:
                     for sub in entry.sub_file_entries:
-                        stack.append((sub, new_path))
+                        stack.append((sub, new_path, frn))
                 except Exception as ex:
                     _record_err(full_path, ex)
     except Exception as ex:
@@ -111,6 +122,7 @@ class ParallelMFTScanner:
         self._pool = None
         self.last_error = None  # 失败原因（字符串），成功时为 None
         self.last_errors_info = []  # 损坏条目信息列表 [(位置, 错误类型), ...]
+        self.last_root_frn = 0  # 卷根目录完整 64 位 file_reference（增量缓存写根目录行用）
         try:
             import pyfsntfs
             pyfsntfs.volume  # 触发导入检查
@@ -158,6 +170,10 @@ class ParallelMFTScanner:
             vol = pyfsntfs.volume()
             vol.open(f"\\\\.\\{drive_letter}:")
             root = vol.get_root_directory()
+            try:
+                self.last_root_frn = root.file_reference
+            except Exception:
+                self.last_root_frn = 0
             for e in root.sub_file_entries or []:
                 try:
                     name = e.name

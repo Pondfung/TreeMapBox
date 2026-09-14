@@ -2,5 +2,5 @@ PyQt6>=6.6.0
 send2trash>=1.8.0
 
 # MFT极速扫描（需管理员权限）
-pyfsntfs>=20240101        # 即 libfsntfs-python，MFT极速扫描依赖
-pywin32>=306              # Windows API 访问
+libfsntfs-python>=20240101  # import 名是 pyfsntfs，MFT 极速扫描依赖
+pywin32>=306                 # Windows API 访问
