@@ -4,7 +4,7 @@
 - **项目路径**: C:/Users/fengyutang/disk_treemap_analyzer
 - **当前状态**: ✅ v0.2.1（v0.2.0 全部功能 + 心跳进度/双实例修复/junction 不跟随）已打包
 - **版本**: 0.2.1
-- **EXE 路径**: C:/Users/fengyutang/disk_treemap_analyzer/dist/磁盘占用分析工具.exe
+- **EXE 路径**: C:/Users/fengyutang/disk_treemap_analyzer/dist/TreeMapBox.exe
 
 ---
 
@@ -78,7 +78,7 @@
    - 瓶颈在 pyfsntfs C 库调用开销，Python 层面已无优化空间
 
 4. **打包完成**
-   - 输出文件：`dist/磁盘占用分析工具.exe`
+   - 输出文件：`dist/TreeMapBox.exe`
    - 已启用控制台模式（可查看扫描日志）
 
 ---
@@ -105,7 +105,7 @@ python test_mft_scanner.py
 ### 方式 2：运行打包的 EXE
 ```bash
 # 直接运行
-C:/Users/fengyutang/disk_treemap_analyzer/dist/磁盘占用分析工具.exe
+C:/Users/fengyutang/disk_treemap_analyzer/dist/TreeMapBox.exe
 
 # 或以管理员身份运行（启用 MFT 极速扫描）
 # 右键 -> 以管理员身份运行
@@ -175,18 +175,18 @@ python build_exe.py
    - `build_exe.py` 去掉冲突的 `--console`（原与 `--windowed` 同时存在，后者被覆盖），正式版无控制台黑窗
    - spec 文件 `console=True → False`，bootloader 由 `run.exe` 改为 `runw.exe`
 2. **打包结果**
-   - `dist/磁盘占用分析工具.exe`（37.7MB，2026-08-17 11:40）
+   - `dist/TreeMapBox.exe`（37.7MB，2026-08-17 11:40）
    - PyInstaller 6.21.0 + Python 3.13.1，exit code 0
    - 含 `pyi_rth_multiprocessing.py` 运行时钩子（多进程打包支持）
 3. **验证**
-   - 启动 EXE：进程稳定、主窗口标题"磁盘占用分析工具 v0.1.0"正常显示
+   - 启动 EXE：进程稳定、主窗口标题"TreeMapBox v0.1.0"正常显示
    - 无 conhost 控制台窗口（符合 --windowed 预期）
    - 多进程 MFT 扫描的 GUI 交互（进度/取消/错误弹窗）需手动以管理员身份运行确认
 
 ### ✅ 重新打包（含 MFT 结果修复，2026-08-17 12:13）
 
 - 修复 MFT 扫描结果为空 bug 后重新打包
-- `dist/磁盘占用分析工具.exe`（36.0MB，2026-08-17 12:13），bootloader=runw.exe 无控制台
+- `dist/TreeMapBox.exe`（36.0MB，2026-08-17 12:13），bootloader=runw.exe 无控制台
 - 启动验证：进程稳定存活、无控制台黑窗
 
 ### ✅ 左下角固定显示扫描/加载时间
@@ -214,7 +214,7 @@ python build_exe.py
   - `calculate_size` 改迭代后序遍历（防深目录 RecursionError）
   - `setUniformRowHeights(True)` + `setAnimated(False)` 性能优化
 - **验证**（offscreen 13/13 PASS）：顶层只建5项/子项0/未加载/箭头显示、展开建5子项/已加载/不重复、路径定位找到/祖先展开/选中、高亮已展开True未展开False、全折叠、calculate_size深树不爆栈
-- **重新打包**（2026-08-17 12:38）：`dist/磁盘占用分析工具.exe`（36.0MB，runw.exe 无控制台），启动验证进程稳定
+- **重新打包**（2026-08-17 12:38）：`dist/TreeMapBox.exe`（36.0MB，runw.exe 无控制台），启动验证进程稳定
 
 ### ✅ 折叠时显示根目录 + 优化加载耗时（28s→2.8s）
 
@@ -229,7 +229,7 @@ python build_exe.py
    - `calculate_size` 去 `child_results` dict，直接读子节点字段累加（`dir_count` +1 放父累加子目录时）
    - 局部绑定热函数减属性查找
 3. **验证**（offscreen 5/5 PASS）：等价性(size/fc/dc/结构一致)、C:\A vs C:\AB 不混淆、子目录 scan_path 过滤、深路径30层无RecursionError、show_root(显示根+折叠回根)、**计时106万 2.83s（原28s，降幅~90%）**
-4. **重新打包**（2026-08-17 13:00）：`dist/磁盘占用分析工具.exe`（36.0MB，runw.exe 无控制台），启动验证进程稳定
+4. **重新打包**（2026-08-17 13:00）：`dist/TreeMapBox.exe`（36.0MB，runw.exe 无控制台），启动验证进程稳定
 
 ### ✅ 修复普通扫描停止闪退（QThread 析构竞态）
 
@@ -243,14 +243,14 @@ python build_exe.py
   - `ParallelScanner`：`with ThreadPoolExecutor` 改手动 + `finally shutdown(wait=True, cancel_futures=True)`（取消未启动 future，停止毫秒级）
   - `closeEvent` 加 `scan_thread.wait(3000)`（防退出时 destroyed while running）
 - **验证**：真实 GUI 连续 30 次"启动-1.5s-停止"，**OK=30 CRASH=0**（修复前约 10 次崩）✓
-- **重新打包**（2026-08-17 13:58）：`dist/磁盘占用分析工具.exe`（36.0MB，runw.exe 无控制台），启动验证进程稳定
+- **重新打包**（2026-08-17 13:58）：`dist/TreeMapBox.exe`（36.0MB，runw.exe 无控制台），启动验证进程稳定
 
 ### ✅ 版本号升级 0.1.0 → 0.2.0
 
 - 本次会话功能性大升级（多进程MFT扫描、进度显示、取消功能、错误处理、懒加载根治未响应、加载耗时28s→2.8s、根目录显示、停止闪退修复），minor 版本升级
 - `main.py` `setApplicationVersion("0.2.0")`、`ui/main_window.py` 窗口标题 "v0.2.0"
 - 需重新打包使版本号生效
-- **重新打包 v0.2.0**（2026-08-17 14:03）：`dist/磁盘占用分析工具.exe`（36.0MB，runw.exe 无控制台），窗口标题"v0.2.0"，启动验证进程稳定
+- **重新打包 v0.2.0**（2026-08-17 14:03）：`dist/TreeMapBox.exe`（36.0MB，runw.exe 无控制台），窗口标题"v0.2.0"，启动验证进程稳定
 
 ### ✅ 完善 README 说明文档
 
@@ -269,7 +269,7 @@ python build_exe.py
 - **修复**（纯主进程侧心跳，零跨进程风险）：`parallel_mft_scanner.py` scan 轮询循环每 ~1s 即使无 worker 完成也调 progress_callback，文案含 `done/total` + 正在扫的子树名（按 async_results 实际 ready 状态取未完成 task 名）+ 已等待秒数；单进程分支扫前也回调子树名
 - **验证**：真实扫 K 盘，状态栏显示 `已扫描 1/2，正在扫描「b_jx3_released_dev_2026-06-29」，已等待 59s...`，秒数持续增长（证明没卡死），心跳文案数 59 ✓
 - 文案示例：`已扫描 1/2，正在扫描「b_jx3_released_dev_2026-06-29」，已等待 15s...` — 用户看到子树名+等待秒数增长即知在加载中
-- **重新打包**（2026-08-17 14:35）：`dist/磁盘占用分析工具.exe`（36.0MB，runw.exe 无控制台），含心跳进度修复
+- **重新打包**（2026-08-17 14:35）：`dist/TreeMapBox.exe`（36.0MB，runw.exe 无控制台），含心跳进度修复
 
 ### ✅ 修复双实例 + All Users junction 跟随
 
@@ -277,7 +277,7 @@ python build_exe.py
 - **问题3（All Users 生造大目录）**：`C:\Users\All Users` 是 symlink→ProgramData，`Default User` 是 junction→Users。普通扫描 `is_dir()` 默认 follow_symlinks=True 跟随→递归扫目标→生造重复大目录（ProgramData 镜像）。MFT 读元数据不跟随故无此问题。修复：`parallel_scanner.py`/`scanner.py` scandir 循环加 `entry.is_junction() or entry.is_symlink()` 检测（实测：单用任一会漏另一类，必须组合），reparse 建 size=0 条目不递归
 - **问题2（范围差异）**：MFT 扫全卷含系统目录（极速优势），普通扫描跳系统目录（速度+权限），用户决策保持各自策略，修 junction 后 All Users 重复消除，剩系统目录策略差异属设计
 - **验证**：普通扫描 C:\Users，All Users/Default User 显示为 size=0 空条目无子项（修复前是 GB 级 ProgramData 镜像）✓
-- **重新打包**（2026-08-17 15:23）：`dist/磁盘占用分析工具.exe`（36.0MB，runw.exe 无控制台），含 junction+双实例修复
+- **重新打包**（2026-08-17 15:23）：`dist/TreeMapBox.exe`（36.0MB，runw.exe 无控制台），含 junction+双实例修复
 
 ### ✅ 损坏 MFT 条目弹窗提醒
 

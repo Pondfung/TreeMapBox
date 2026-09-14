@@ -57,7 +57,7 @@ for entry in root.sub_file_entries:
 
 | 属性 | 值 |
 |------|-----|
-| 输出文件 | `dist/磁盘占用分析工具.exe` |
+| 输出文件 | `dist/TreeMapBox.exe` |
 | 文件大小 | 约 36 MB |
 | Python 版本 | 3.13.1 |
 | 打包工具 | PyInstaller 6.21.0 |

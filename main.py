@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Windows 系统盘矩形树图磁盘占用分析工具
+TreeMapBox - Windows 磁盘占用分析工具
 
 主程序入口
 """
@@ -21,7 +21,7 @@ from PyQt6.QtCore import Qt
 from ui.main_window import MainWindow
 
 # 崩溃日志路径（写入 TEMP，--windowed 打包下也能找到）
-_CRASH_LOG = os.path.join(os.environ.get('TEMP', '.'), 'disk_analyzer_crash.log')
+_CRASH_LOG = os.path.join(os.environ.get('TEMP', '.'), 'treemapbox_crash.log')
 
 
 def _excepthook(exc_type, exc_val, exc_tb):
@@ -47,9 +47,9 @@ def main():
     app = QApplication(sys.argv)
 
     # 设置应用信息
-    app.setApplicationName("磁盘占用分析工具")
+    app.setApplicationName("TreeMapBox")
     app.setApplicationVersion("0.9.5")
-    app.setOrganizationName("DiskAnalyzer")
+    app.setOrganizationName("TreeMapBox")
 
     # 创建主窗口
     window = MainWindow()

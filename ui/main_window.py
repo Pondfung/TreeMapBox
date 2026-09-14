@@ -30,7 +30,7 @@ class MainWindow(QMainWindow):
         self._check_admin_rights()
 
     def _setup_ui(self):
-        self.setWindowTitle("磁盘占用分析工具 v0.9.5")
+        self.setWindowTitle("TreeMapBox v0.9.5")
         self.setMinimumSize(1000, 700)
         self.resize(1200, 800)
 

@@ -1,6 +1,6 @@
-# 磁盘占用分析工具 v0.9.5
+# TreeMapBox v0.9.5
 
-基于 PyQt6 的 Windows 磁盘占用分析工具，集成磁盘分析、重复文件筛选、缓存清理三大功能模块。
+基于 PyQt6 的 Windows 磁盘占用分析工具（TreeMapBox），集成磁盘分析、重复文件筛选、缓存清理三大功能模块。
 
 ## 功能特性
 
@@ -59,7 +59,7 @@ pip install -r requirements.txt
 python main.py
 ```
 
-或直接运行打包好的 `dist/磁盘占用分析工具.exe`。
+或直接运行打包好的 `dist/TreeMapBox.exe`。
 
 ### 典型工作流
 1. **Tab1 磁盘分析**：扫描根目录（如 E:\），自动导出文件列表 JSON；再次扫描同盘可选复用近期结果（几秒加载）
@@ -91,7 +91,7 @@ disk_treemap_analyzer/
 │   ├── simple_treemap.py           # 矩形树图控件
 │   └── batch_operations.py         # 批量操作参考
 └── dist/
-    └── 磁盘占用分析工具.exe          # 打包产物（v0.9.5）
+    └── TreeMapBox.exe                # 打包产物（v0.9.5）
 ```
 
 ## 打包
@@ -100,7 +100,7 @@ disk_treemap_analyzer/
 python build_exe.py
 ```
 
-生成 `dist/磁盘占用分析工具.exe`（单文件，约 37MB，windowed 模式）。
+生成 `dist/TreeMapBox.exe`（单文件，约 37MB，windowed 模式）。
 
 > 提示：windowed 模式下崩溃无控制台输出，崩溃日志写入 `%TEMP%\disk_analyzer_crash.log`。
 

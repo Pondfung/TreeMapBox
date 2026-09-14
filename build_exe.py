@@ -18,7 +18,7 @@ project_root = Path(__file__).parent
 # 打包参数
 PyInstaller.__main__.run([
     'main.py',                           # 主程序入口
-    '--name=磁盘占用分析工具',              # 程序名称
+    '--name=TreeMapBox',                  # 程序名称
     '--onefile',                         # 打包成单个exe文件
     '--windowed',                        # 窗口模式（不显示控制台）
     '--clean',                           # 清理临时文件
@@ -56,5 +56,5 @@ PyInstaller.__main__.run([
 print("\n" + "="*70)
 print("打包完成！")
 print("="*70)
-print(f"可执行文件位置: {project_root / 'dist' / '磁盘占用分析工具.exe'}")
+print(f"可执行文件位置: {project_root / 'dist' / 'TreeMapBox.exe'}")
 print("="*70)
